@@ -38,11 +38,15 @@ class SoundcloudUser(nm.StructuredNode):
     followings = nm.RelationshipTo('SoundcloudUser', 'follows')
     followers = nm.RelationshipTo('SoundcloudUser', 'followed_by')
     scanned = nm.BooleanProperty(default=False)
+    followings_cursor = nm.StringProperty()
+    followers_cursor = nm.StringProperty()
 
     @classmethod
     def attrs(kls):
         attrs = [x for x in dir(kls) if isinstance(getattr(kls, x), nm.Property)]
         attrs.remove('scanned')
+        attrs.remove('followings_cursor')
+        attrs.remove('followers_cursor')
         attrs.remove('userid')
         attrs.append('id')
         return attrs
@@ -73,14 +77,14 @@ class SoundcloudUser(nm.StructuredNode):
             kls.add_pages(client.get(users.next_href), callback)
 
     def add_followers(self):
-        followers = client.get('/users/' + str(self.userid) + '/followers')
+        followers = client.get('/users/' + str(self.userid) + '/followers', cursor=self.followers_cursor)
         def callback(user):
             user.followings.connect(self)
             self.followers.connect(user)
         self.__class__.add_pages(followers, callback)
 
     def add_followings(self):
-        followings = client.get('/users/' + str(self.userid) + '/followings')
+        followings = client.get('/users/' + str(self.userid) + '/followings', cursor=self.followings_cursor)
         def callback(user):
             self.followings.connect(user)
             user.followers.connect(self)
