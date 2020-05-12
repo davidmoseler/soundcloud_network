@@ -1,6 +1,7 @@
 import neomodel as nm
 import soundcloud
 import configparser
+from urllib.parse import urlparse, parse_qs
 
 settings = configparser.ConfigParser()
 settings._interpolation = configparser.ExtendedInterpolation()
@@ -50,16 +51,14 @@ class SoundcloudUser(nm.StructuredNode):
     followers = nm.RelationshipTo('SoundcloudUser', 'followed_by')
     scanned = nm.BooleanProperty(default=False)
     deep_scanned = nm.BooleanProperty(default=False)
-    followings_cursor = nm.StringProperty()
-    followers_cursor = nm.StringProperty()
+    cursor = nm.StringProperty()
 
     @classmethod
     def attrs(kls):
         attrs = [x for x in dir(kls) if isinstance(getattr(kls, x), nm.Property)]
         attrs.remove('scanned')
         attrs.remove('deep_scanned')
-        attrs.remove('followings_cursor')
-        attrs.remove('followers_cursor')
+        attrs.remove('cursor')
         attrs.remove('userid')
         attrs.append('id')
         return attrs
@@ -77,31 +76,32 @@ class SoundcloudUser(nm.StructuredNode):
             return SoundcloudUser(**kls.hash(user)).save()
         return SoundcloudUser.nodes.get(userid=user.id)
 
-    @classmethod
-    def add_pages(kls, users, callback):
+    def add_pages(self, users, callback):
         for user in users.collection:
-            user = kls.add(user)
+            user = self.__class__.add(user)
             callback(user)
         if users.next_href:
-            file = open('next_href', 'w')
-            file.write(str(len(users.collection)))
-            file.write(str(users.next_href))
-            file.close()
-            kls.add_pages(client.get(users.next_href), callback)
+            self.cursor = parse_qs(urlparse(users.next_href).query)['cursor'][0]
+            self.save()
+            self.add_pages(client.get(users.next_href), callback)
 
     def add_followers(self):
-        followers = client.get('/users/' + str(self.userid) + '/followers', cursor=self.followers_cursor, page_size=200)
+        followers = client.get('/users/' + str(self.userid) + '/followers', cursor=self.cursor, page_size=200)
         def callback(user):
             user.followings.connect(self)
             self.followers.connect(user)
-        self.__class__.add_pages(followers, callback)
+        self.add_pages(followers, callback)
+        self.cursor = None
+        self.save()
 
     def add_followings(self):
-        followings = client.get('/users/' + str(self.userid) + '/followings', cursor=self.followings_cursor, page_size=200)
+        followings = client.get('/users/' + str(self.userid) + '/followings', cursor=self.cursor, page_size=200)
         def callback(user):
             self.followings.connect(user)
             user.followers.connect(self)
         self.__class__.add_pages(followings, callback)
+        self.cursor = None
+        self.save()
 
     def scan(self):
         if not self.scanned:
