@@ -49,6 +49,7 @@ class SoundcloudUser(nm.StructuredNode):
     followings = nm.RelationshipTo('SoundcloudUser', 'follows')
     followers = nm.RelationshipTo('SoundcloudUser', 'followed_by')
     scanned = nm.BooleanProperty(default=False)
+    deep_scanned = nm.BooleanProperty(default=False)
     followings_cursor = nm.StringProperty()
     followers_cursor = nm.StringProperty()
 
@@ -56,6 +57,7 @@ class SoundcloudUser(nm.StructuredNode):
     def attrs(kls):
         attrs = [x for x in dir(kls) if isinstance(getattr(kls, x), nm.Property)]
         attrs.remove('scanned')
+        attrs.remove('deep_scanned')
         attrs.remove('followings_cursor')
         attrs.remove('followers_cursor')
         attrs.remove('userid')
@@ -110,7 +112,7 @@ class SoundcloudUser(nm.StructuredNode):
         self.save()
 
     def scan_deep(self):
-        if not self.userid in DeepScanned.list():
+        if not self.deep_scanned and not self.userid in DeepScanning.list():
             DeepScanning.add(self.userid)
             self.scan()
             print("Deep scanning {}".format(self.permalink))
@@ -120,6 +122,8 @@ class SoundcloudUser(nm.StructuredNode):
             for user in self.followings:
                 user.scan_deep()
             DeepScanning.remove(self.userid)
+            self.deep_scanned = True
+            self.save()
 
 user = client.get('/resolve', url=settings.get('soundcloud', 'initial_uri'))
 user = SoundcloudUser.add(user)
