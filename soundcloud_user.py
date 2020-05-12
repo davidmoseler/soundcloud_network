@@ -15,17 +15,28 @@ nm.config.DATABASE_URL = f"bolt://{username}:{password}@{host}:{port}"
 client = soundcloud.Client(client_id=settings.get('soundcloud', 'client_id'),
         client_secret=settings.get('soundcloud', 'client_secret'))
 
-class DeepScanned:
+class DeepScanning:
     @staticmethod
     def add(id):
         with open('deep_scanned', 'a') as file:
-            if not id in DeepScanned.list():
+            if not id in DeepScanning.list():
                 file.write("{}\n".format(id))
 
     @staticmethod
     def list():
         with open('deep_scanned', 'r') as file:
             return file.read().splitlines()
+
+    @staticmethod
+    def remove(id):
+        ids = []
+        with open('deep_scanned', 'r') as file:
+            ids = file.read().splitlines()
+            ids.remove(id)
+        with open('deep_scanned', 'w') as file:
+            for id in ids:
+                file.write(f"{id}\n")
+
 
 class SoundcloudUser(nm.StructuredNode):
     userid = nm.StringProperty(unique_index=True)
@@ -100,6 +111,7 @@ class SoundcloudUser(nm.StructuredNode):
 
     def scan_deep(self):
         if not self.userid in DeepScanned.list():
+            DeepScanning.add(self.userid)
             self.scan()
             print("Deep scanning {}".format(self.permalink))
             print("{} followers and {} followings".format(len(self.followers), len(self.followings)))
@@ -107,7 +119,7 @@ class SoundcloudUser(nm.StructuredNode):
                 user.scan_deep()
             for user in self.followings:
                 user.scan_deep()
-            DeepScanned.add(self.userid)
+            DeepScanning.remove(self.userid)
 
 user = client.get('/resolve', url=settings.get('soundcloud', 'initial_uri'))
 user = SoundcloudUser.add(user)
