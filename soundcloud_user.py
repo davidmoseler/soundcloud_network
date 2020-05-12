@@ -4,7 +4,7 @@ import configparser
 
 settings = configparser.ConfigParser()
 settings._interpolation = configparser.ExtendedInterpolation()
-settings.read('input/settings.ini')
+settings.read('settings.ini')
 
 username = settings.get('neo', 'username')
 password = settings.get('neo', 'password')
