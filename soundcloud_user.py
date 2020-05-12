@@ -77,14 +77,14 @@ class SoundcloudUser(nm.StructuredNode):
             kls.add_pages(client.get(users.next_href), callback)
 
     def add_followers(self):
-        followers = client.get('/users/' + str(self.userid) + '/followers', cursor=self.followers_cursor)
+        followers = client.get('/users/' + str(self.userid) + '/followers', cursor=self.followers_cursor, page_size=200)
         def callback(user):
             user.followings.connect(self)
             self.followers.connect(user)
         self.__class__.add_pages(followers, callback)
 
     def add_followings(self):
-        followings = client.get('/users/' + str(self.userid) + '/followings', cursor=self.followings_cursor)
+        followings = client.get('/users/' + str(self.userid) + '/followings', cursor=self.followings_cursor, page_size=200)
         def callback(user):
             self.followings.connect(user)
             user.followers.connect(self)
